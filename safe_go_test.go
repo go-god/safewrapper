@@ -12,6 +12,8 @@ func TestGo(t *testing.T) {
 
 		log.Println("abc")
 		panic("hello")
+	}, func(r interface{}) {
+		log.Println("exec recover:", r)
 	})
 
 	<-done
@@ -20,9 +22,9 @@ func TestGo(t *testing.T) {
 
 /*
 === RUN   TestGo
-2023/04/12 19:05:15 abc
-2023/04/12 19:05:15 wrapper exec recover:hello
-2023/04/12 19:05:15 ok
+2023/04/12 20:39:26 abc
+2023/04/12 20:39:26 exec recover: hello
+2023/04/12 20:39:26 ok
 --- PASS: TestGo (0.00s)
 PASS
 */

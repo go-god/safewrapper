@@ -4,31 +4,16 @@ import (
 	"sync"
 )
 
-type wrapWgImpl struct {
-	wg           sync.WaitGroup
-	recoveryFunc func()
+// WaitGroup wrap sync.WaitGroup
+// Compatible with the go library's waitGroup operations
+type WaitGroup struct {
+	wg sync.WaitGroup
 }
 
-// NewWaitGroup create safe waitGroup
-func NewWaitGroup(opts ...Option) *wrapWgImpl {
-	w := &wrapWgImpl{}
-	option := &Options{}
-	for _, o := range opts {
-		o(option)
-	}
-
-	w.recoveryFunc = option.RecoveryFunc
-	if w.recoveryFunc == nil {
-		w.recoveryFunc = defaultRecovery
-	}
-
-	return w
-}
-
-// Wrap fn func in goroutine to run
+// Wrap fn func in goroutine to run,It's relatively unsafe.
 // Note: panic is not caught here, because we know for sure that panic will not be thrown,
 // so we don't need to catch processing
-func (w *wrapWgImpl) Wrap(fn func()) {
+func (w *WaitGroup) Wrap(fn func()) {
 	w.wg.Add(1)
 	go func() {
 		defer w.wg.Done()
@@ -37,11 +22,20 @@ func (w *wrapWgImpl) Wrap(fn func()) {
 	}()
 }
 
-// WrapWithRecover exec func with recover
-func (w *wrapWgImpl) WrapWithRecover(fn func()) {
+// WrapWithRecover exec func with recover safely
+func (w *WaitGroup) WrapWithRecover(fn func(), recoveryFunc ...func(r interface{})) {
+	var recoveryHandler = defaultRecoveryFunc
+	if len(recoveryFunc) > 0 && recoveryFunc[0] != nil {
+		recoveryHandler = recoveryFunc[0]
+	}
+
 	w.wg.Add(1)
 	go func() {
-		defer w.recoveryFunc()
+		defer func() {
+			if r := recover(); r != nil {
+				recoveryHandler(r)
+			}
+		}()
 		defer w.wg.Done()
 
 		fn()
@@ -49,11 +43,16 @@ func (w *wrapWgImpl) WrapWithRecover(fn func()) {
 }
 
 // Wait this func wait for a set of goroutines to complete execution
-func (w *wrapWgImpl) Wait() {
+func (w *WaitGroup) Wait() {
 	w.wg.Wait()
 }
 
-// Done wg counter minus 1
-func (w *wrapWgImpl) Done() {
+// Done wg delta counter minus 1
+func (w *WaitGroup) Done() {
 	w.wg.Done()
+}
+
+// Add delta+1
+func (w *WaitGroup) Add(delta int) {
+	w.wg.Add(delta)
 }

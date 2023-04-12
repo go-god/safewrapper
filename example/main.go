@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"runtime/debug"
 
 	"github.com/go-god/safewrapper"
 )
@@ -14,13 +15,16 @@ func main() {
 
 		log.Println("abc")
 		panic("hello")
+	}, func(r interface{}) {
+		log.Println("exec recover:", r)
+		log.Printf("full stack:%s\n", string(debug.Stack()))
 	})
 
 	<-done
 	log.Println("ok")
 
 	// safe waitGroup to wait some goroutine to finish
-	wg := safewrapper.NewWaitGroup()
+	var wg safewrapper.WaitGroup
 	for i := 0; i < 10; i++ {
 		// Note: i must be a duplicate, otherwise it will always be a value when wg executes func,
 		// so it re-uses the index variable
@@ -31,6 +35,8 @@ func main() {
 			}
 
 			log.Println("current index: ", index)
+		}, func(r interface{}) {
+			log.Printf("current index:%d exec panic: %v", index, r)
 		})
 	}
 
